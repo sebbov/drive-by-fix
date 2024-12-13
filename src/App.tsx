@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { gapi } from 'gapi-script';
 import FileDropZone from './FileDropZone';
+import FilenameTable from './FilenameTable';
 
 const CLIENT_ID = '392411933975-mpmnrn4p6cmrkcnivu0drei0lv33snlc.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/drive';
+const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
 
 function App() {
   const [isSignedIn, setIsSignedIn] = useState(false);
@@ -14,6 +16,7 @@ function App() {
       gapi.client.init({
         clientId: CLIENT_ID,
         scope: SCOPES,
+        discoveryDocs: [DISCOVERY_DOC],
       }).then(() => {
         const authInstance = gapi.auth2.getAuthInstance();
         setIsSignedIn(authInstance.isSignedIn.get());
@@ -75,7 +78,12 @@ function App() {
       ) : (
         <>
           <button onClick={signOut}>Sign out</button>
-          <FileDropZone onFilesDropped={handleFilesDropped} />
+
+          {filenames.length == 0 ? (
+            <FileDropZone onFilesDropped={handleFilesDropped} />
+          ) : (
+            <FilenameTable filenames={filenames} />
+          )}
         </>
       )}
     </div>
