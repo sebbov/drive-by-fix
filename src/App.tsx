@@ -71,18 +71,33 @@ function App() {
   }, [filenames]);
 
   return (
-    <div>
-      <h1>Drive-by-fix</h1>
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
+      <h1 className="text-4xl font-extrabold text-blue-600 mb-8">Drive-by-fix</h1>
+
       {!isSignedIn ? (
-        <button onClick={signIn}>Sign in with Google</button>
+        <button
+          onClick={signIn}
+          className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition shadow-lg"
+        >
+          Sign in with Google
+        </button>
       ) : (
         <>
-          <button onClick={signOut}>Sign out</button>
+          <button
+            onClick={signOut}
+            className="mb-6 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition shadow-lg"
+          >
+            Sign out
+          </button>
 
-          {filenames.length == 0 ? (
-            <FileDropZone onFilesDropped={handleFilesDropped} />
+          {filenames.length === 0 ? (
+            <div className="w-full max-w-lg bg-white shadow-md rounded-lg p-6">
+              <FileDropZone onFilesDropped={handleFilesDropped} />
+            </div>
           ) : (
-            <FilenameTable filenames={filenames} />
+            <div className="w-full max-w-4xl bg-white shadow-md rounded-lg p-6">
+              <FilenameTable filenames={filenames} />
+            </div>
           )}
         </>
       )}
