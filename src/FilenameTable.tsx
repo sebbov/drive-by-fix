@@ -14,7 +14,9 @@ interface FilenameTableProps {
 }
 
 const FilenameTable: React.FC<FilenameTableProps> = ({ filenames }) => {
-    const [matches, setMatches] = useState<{ [key: string]: DriveFile[] }>({});
+    const [matches, setMatches] = useState<{ [key: string]: (DriveFile[] | null) }>({});
+    const [allChecked, setAllChecked] = useState(true);
+    const [checkedFiles, setCheckedFiles] = useState(new Set(filenames));
 
     const handleLookup = async (filename: string) => {
         const foundMatches = await findFile(filename);
@@ -27,8 +29,30 @@ const FilenameTable: React.FC<FilenameTableProps> = ({ filenames }) => {
     const handleLookupAll = async () => {
         // TODO: Parallelize, to some degree.
         for (const filename of filenames) {
-            await handleLookup(filename);
+            if (checkedFiles.has(filename) && !matches[filename]) {
+                await handleLookup(filename);
+            }
         };
+    };
+
+    const handleMasterCheckboxChange = () => {
+        setAllChecked(prevState => {
+            const newState = !prevState;
+            setCheckedFiles(newState ? new Set(filenames) : new Set());
+            return newState;
+        });
+    };
+
+    const handleRowCheckboxChange = (filename: string) => {
+        setCheckedFiles(prevState => {
+            const newCheckedFiles = new Set(prevState);
+            if (newCheckedFiles.has(filename)) {
+                newCheckedFiles.delete(filename);
+            } else {
+                newCheckedFiles.add(filename);
+            }
+            return newCheckedFiles;
+        });
     };
 
     return (
@@ -37,13 +61,20 @@ const FilenameTable: React.FC<FilenameTableProps> = ({ filenames }) => {
                 onClick={handleLookupAll}
                 className="mb-4 px-4 py-2 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700 transition"
             >
-                Lookup All
+                Lookup
             </button>
 
             <table className="w-full table-auto bg-white shadow-md rounded border border-gray-300">
                 <thead className="bg-gray-200 text-gray-700">
                     <tr>
-                        <th className="px-4 py-2 text-left">Lookup</th>
+                        <th className="px-4 py-2 text-left">
+                            {/* Master checkbox to select/deselect all rows */}
+                            <input
+                                type="checkbox"
+                                checked={allChecked}
+                                onChange={handleMasterCheckboxChange}
+                            />
+                        </th>
                         <th className="px-4 py-2 text-left">Filename</th>
                         <th className="px-4 py-2 text-left">Drive Matches</th>
                     </tr>
@@ -56,17 +87,17 @@ const FilenameTable: React.FC<FilenameTableProps> = ({ filenames }) => {
                                 } hover:bg-gray-100 transition`}
                         >
                             <td className="px-4 py-2">
-                                <button
-                                    onClick={() => handleLookup(filename)}
-                                    className="px-3 py-1 bg-green-600 text-white font-medium rounded hover:bg-green-700 transition"
-                                >
-                                    Action
-                                </button>
+                                {/* Checkbox for each row */}
+                                <input
+                                    type="checkbox"
+                                    checked={checkedFiles.has(filename)}
+                                    onChange={() => handleRowCheckboxChange(filename)}
+                                />
                             </td>
                             <td className="px-4 py-2 text-gray-800">{filename}</td>
                             <td className="px-4 py-2">
-                                {matches[filename]?.length > 0 ? (
-                                    matches[filename].map((match, index) => (
+                                {matches[filename] && matches[filename].length > 0 ? (
+                                    matches[filename]?.map((match, index) => (
                                         <div key={index} className="text-sm text-gray-700">
                                             {match.name} {match.size}B{" "}
                                             <span
@@ -77,8 +108,10 @@ const FilenameTable: React.FC<FilenameTableProps> = ({ filenames }) => {
                                             </span>
                                         </div>
                                     ))
+                                ) : matches[filename]?.length == 0 ? (
+                                    <div className="text-gray-800">No matches found.</div>
                                 ) : (
-                                    <div className="text-gray-500">No matches yet</div>
+                                    <div className="text-gray-400">Not looked up yet.</div>
                                 )}
                             </td>
                         </tr>
