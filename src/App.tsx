@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { gapi } from 'gapi-script';
 import FileDropZone from './FileDropZone';
-import FilenameTable from './FilenameTable';
+import { DriveFile } from './drive';
+import FilenameLookup from './FilenameLookup';
+import MatchesReview from './MatchesReview';
 
 const CLIENT_ID = '392411933975-mpmnrn4p6cmrkcnivu0drei0lv33snlc.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/drive';
@@ -9,8 +11,9 @@ const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/res
 
 const steps = [
   "Sign in to Google Drive",
-  "Upload DriveFS logs",
-  "Locate files in Google Drive",
+  "Analyze DriveFS logs",
+  "Locate files in Drive",
+  "Review results",
   "Fix files",
   "Completion",
 ];
@@ -19,6 +22,8 @@ function App() {
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [filenames, setFilenames] = useState<string[]>([])
   const [activeStep, setActiveStep] = useState(isSignedIn ? 1 : 0);
+  const [matches, setMatches] = useState<{ [key: string]: DriveFile[] }>({});
+  const [filesToFix, setFilesToFix] = useState<DriveFile[]>([]);
 
   useEffect(() => {
     function start() {
@@ -83,6 +88,16 @@ function App() {
     setActiveStep(2);
   };
 
+  const onMatchesReady = (matches: { [key: string]: DriveFile[] }) => {
+    setMatches(matches);
+    setActiveStep(3);
+  }
+
+  const onMatchesReviewed = (files: DriveFile[]) => {
+    setFilesToFix(files);
+    setActiveStep(4);
+  }
+
   useEffect(() => {
     console.log(`filenames: ${JSON.stringify(filenames)}`);
   }, [filenames]);
@@ -110,10 +125,13 @@ function App() {
       case 1:
         return <FileDropZone onFilesDropped={handleFilesDropped} />;
       case 2:
-        return <FilenameTable filenames={filenames} />;
+        return <FilenameLookup filenames={filenames} onMatchesReady={onMatchesReady} />;
       case 3:
-        return <div className="text-gray-700 text-center">Fix files (dummy content)</div>;
+        return <MatchesReview filenames={filenames} matches={matches} onContinue={onMatchesReviewed} />;
       case 4:
+        return <div className="text-gray-700 text-center">File fixer (dummy content {JSON.stringify(filesToFix)})</div>;
+      // return <FileFixer matches={matches} onContinue={() => setActiveStep(4)} />;
+      case 5:
         return <div className="text-gray-700 text-center">Completion screen (dummy content)</div>;
       default:
         return null;
