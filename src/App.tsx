@@ -4,6 +4,7 @@ import FileDropZone from './FileDropZone';
 import { DriveFile } from './drive';
 import FilenameLookup from './FilenameLookup';
 import MatchesReview from './MatchesReview';
+import FileFixer from './FileFixer';
 
 const CLIENT_ID = '392411933975-mpmnrn4p6cmrkcnivu0drei0lv33snlc.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/drive';
@@ -11,10 +12,10 @@ const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/res
 
 const steps = [
   "Sign in to Google Drive",
-  "Analyze DriveFS logs",
-  "Locate files in Drive",
-  "Review results",
-  "Fix files",
+  "Analyze DriveFS Logs",
+  "Match Files in Drive",
+  "Review Matches",
+  "Fix Files",
   "Completion",
 ];
 
@@ -98,6 +99,11 @@ function App() {
     setActiveStep(4);
   }
 
+  const onFixCompletion = (files: DriveFile[]) => {
+    console.log(`SEB: fixed files: ${JSON.stringify(files)}`);
+    setActiveStep(5);
+  }
+
   useEffect(() => {
     console.log(`filenames: ${JSON.stringify(filenames)}`);
   }, [filenames]);
@@ -129,8 +135,7 @@ function App() {
       case 3:
         return <MatchesReview filenames={filenames} matches={matches} onContinue={onMatchesReviewed} />;
       case 4:
-        return <div className="text-gray-700 text-center">File fixer (dummy content {JSON.stringify(filesToFix)})</div>;
-      // return <FileFixer matches={matches} onContinue={() => setActiveStep(4)} />;
+        return <FileFixer files={filesToFix} onCompletion={onFixCompletion} />;
       case 5:
         return <div className="text-gray-700 text-center">Completion screen (dummy content)</div>;
       default:
