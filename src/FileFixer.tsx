@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import plimit from 'p-limit';
 import ProgressBar from './ProgressBar';
-import { DriveFile } from './drive';
+import { DriveFile, download } from './drive';
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const formatFileSize = (size: string) => {
     const sizeInBytes = parseInt(size, 10);
@@ -66,22 +65,20 @@ const FileFixer: React.FC<FileFixerProps> = ({ files, onCompletion }) => {
     const isAllSelected = files.length > 0 && files.every((file) => selectedFiles.has(file.id));
 
     const handleFileAsync = async (
-        fileId: string,
+        file: DriveFile,
         updateStatus: (status: { message: string; progress?: number }) => void
     ) => {
-        // TODO(seb): Replace dummy fake with real drive operations.
-        updateStatus({ message: `Processing file ${fileId}...`, progress: 0 });
-        const delay = Math.floor(Math.random() * 1000) + 1000;
-        let progress = 0;
+        updateStatus({ message: "Initializing download" });
 
-        while (progress < 100) {
-            await sleep(200);
-            progress += Math.random() * 20;
-            updateStatus({ message: `Processing file ${fileId}...`, progress: Math.min(100, Math.round(progress)) });
+        const { fileBlob, md5Checksum } = await download(file.id, parseInt(file.size, 10), (percent) => {
+            updateStatus({ message: `Downloading: `, progress: percent });
+        });
+        if (md5Checksum != file.md5Checksum) {
+            console.log('SEB: checksum mismatch, should upload a new copy...')
         }
+        void fileBlob;  // TEMP
 
-        await sleep(delay);
-        updateStatus({ message: `Complete for file ${fileId}!`, progress: 100 });
+        updateStatus({ message: "Completed!" });
     };
 
     const handleFix = async () => {
@@ -97,7 +94,7 @@ const FileFixer: React.FC<FileFixerProps> = ({ files, onCompletion }) => {
 
         const tasks = selected.map((file) =>
             limit(async () => {
-                await handleFileAsync(file.id, (status) => updateStatus(file.id, status));
+                await handleFileAsync(file, (status) => updateStatus(file.id, status));
             })
         );
 
@@ -165,10 +162,9 @@ const FileFixer: React.FC<FileFixerProps> = ({ files, onCompletion }) => {
                                 <td className="p-2">{formatFileSize(file.size)}</td>
                                 <td className="p-2">{formatModifiedDate(file.modifiedTime)}</td>
                                 <td className="p-2">
-                                    {status?.progress !== undefined ? (
-                                        <ProgressBar percentage={status.progress} />
-                                    ) : (
-                                        status?.message || ''
+                                    {status?.message}
+                                    {status?.progress !== undefined && (
+                                        < ProgressBar percentage={status.progress} />
                                     )}
                                 </td>
                             </tr>
