@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import plimit from 'p-limit';
 import ProgressBar from './ProgressBar';
-import { DriveFile, download } from './drive';
+import { DriveFile, download, copy, newFolderInRoot } from './drive';
 
 
 const formatFileSize = (size: string) => {
@@ -65,17 +65,21 @@ const FileFixer: React.FC<FileFixerProps> = ({ files, onCompletion }) => {
     const isAllSelected = files.length > 0 && files.every((file) => selectedFiles.has(file.id));
 
     const handleFileAsync = async (
+        backupFolderId: string,
         file: DriveFile,
         updateStatus: (status: { message: string; progress?: number }) => void
     ) => {
         updateStatus({ message: "Initializing download" });
-
         const { fileBlob, md5Checksum } = await download(file.id, parseInt(file.size, 10), (percent) => {
             updateStatus({ message: `Downloading: `, progress: percent });
         });
-        if (md5Checksum != file.md5Checksum) {
-            console.log('SEB: checksum mismatch, should upload a new copy...')
+        if (md5Checksum == file.md5Checksum) {
+            updateStatus({ message: "Not corrupted, left alone." });
+            return
         }
+
+        updateStatus({ message: `Backing up...` });
+        await copy(file.id, file.name, file.parents[0], backupFolderId);
         void fileBlob;  // TEMP
 
         updateStatus({ message: "Completed!" });
@@ -84,6 +88,9 @@ const FileFixer: React.FC<FileFixerProps> = ({ files, onCompletion }) => {
     const handleFix = async () => {
         setIsFixing(true);
         setIsComplete(false);
+
+        const backupFolderName = `Drive-by-Fix backup for run on ${new Date().toISOString()}`;
+        const backupFolderId = await newFolderInRoot(backupFolderName);
 
         const limit = plimit(10);
         const selected = files.filter((file) => selectedFiles.has(file.id));
@@ -94,7 +101,7 @@ const FileFixer: React.FC<FileFixerProps> = ({ files, onCompletion }) => {
 
         const tasks = selected.map((file) =>
             limit(async () => {
-                await handleFileAsync(file, (status) => updateStatus(file.id, status));
+                await handleFileAsync(backupFolderId, file, (status) => updateStatus(file.id, status));
             })
         );
 

@@ -68,3 +68,30 @@ export async function download(fileId: string, fileSize: number, onProgressPerce
         }
     });
 }
+
+export async function newFolderInRoot(name: string): Promise<string> {
+    const newFolder = (await gapi.client.drive.files.create({
+        resource: {
+            name: name,
+            mimeType: 'application/vnd.google-apps.folder',
+            parents: ['root']
+        }
+    })).result
+
+    return newFolder.id;
+}
+
+export async function copy(fileId: string, fileName: string, parentId: string, newParentId: string) {
+    const copy = (await gapi.client.drive.files.copy({
+        fileId: fileId
+    })).result
+    await gapi.client.drive.files.update({
+        fileId: copy.id,
+        addParents: newParentId,
+        removeParents: parentId,
+        resource: {
+            name: `Drive-by-Fix Copy of ${fileName}`,
+        },
+        fields: 'id, parents'
+    })
+}
