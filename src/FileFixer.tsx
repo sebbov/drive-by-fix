@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import plimit from 'p-limit';
 import ProgressBar from './ProgressBar';
-import { DriveFile, download, copy, newFolderInRoot } from './drive';
+import { DriveFile, download, copy, upload, newFolderInRoot } from './drive';
 
 
 const formatFileSize = (size: string) => {
@@ -70,8 +70,8 @@ const FileFixer: React.FC<FileFixerProps> = ({ files, onCompletion }) => {
         updateStatus: (status: { message: string; progress?: number }) => void
     ) => {
         updateStatus({ message: "Initializing download" });
-        const { fileBlob, md5Checksum } = await download(file.id, parseInt(file.size, 10), (percent) => {
-            updateStatus({ message: `Downloading: `, progress: percent });
+        const { fileBlob, md5Checksum } = await download(file.id, file.mimeType, parseInt(file.size, 10), (percent) => {
+            updateStatus({ message: "Downloading: ", progress: percent });
         });
         if (md5Checksum == file.md5Checksum) {
             updateStatus({ message: "Not corrupted, left alone." });
@@ -80,7 +80,11 @@ const FileFixer: React.FC<FileFixerProps> = ({ files, onCompletion }) => {
 
         updateStatus({ message: `Backing up...` });
         await copy(file.id, file.name, file.parents[0], backupFolderId);
-        void fileBlob;  // TEMP
+
+        updateStatus({ message: "Initializing upload" });
+        await upload(file.id, fileBlob, (percent) => {
+            updateStatus({ message: "Uploading: ", progress: percent });
+        });
 
         updateStatus({ message: "Completed!" });
     };
@@ -138,6 +142,7 @@ const FileFixer: React.FC<FileFixerProps> = ({ files, onCompletion }) => {
                         </th>
                         <th className="p-2">Go To</th>
                         <th className="p-2">Name</th>
+                        <th className="p-2">Version</th>
                         <th className="p-2">Size</th>
                         <th className="p-2">Modified</th>
                         <th className="p-2">Status</th>
@@ -166,6 +171,7 @@ const FileFixer: React.FC<FileFixerProps> = ({ files, onCompletion }) => {
                                     </a>
                                 </td>
                                 <td className="p-2">{file.name}</td>
+                                <td className="p-2">{file.version}</td>
                                 <td className="p-2">{formatFileSize(file.size)}</td>
                                 <td className="p-2">{formatModifiedDate(file.modifiedTime)}</td>
                                 <td className="p-2">

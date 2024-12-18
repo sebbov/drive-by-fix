@@ -30,7 +30,7 @@ export async function findFile(name: string): Promise<DriveFile[]> {
 }
 
 
-export async function download(fileId: string, fileSize: number, onProgressPercent: (percent: number) => void): Promise<{ fileBlob: Blob, md5Checksum: string }> {
+export async function download(fileId: string, mimeType: string, fileSize: number, onProgressPercent: (percent: number) => void): Promise<{ fileBlob: Blob, md5Checksum: string }> {
     return new Promise((resolve, reject) => {
         try {
             // We're using XHR b/c it offers a way to monitor download progress.  An alternative would be
@@ -39,6 +39,7 @@ export async function download(fileId: string, fileSize: number, onProgressPerce
             const xhr = new XMLHttpRequest();
             xhr.open('GET', `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, true);
             xhr.setRequestHeader('Authorization', `Bearer ${gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().access_token}`);
+            xhr.responseType = 'arraybuffer';
 
             xhr.onprogress = (event) => {
                 if (event.lengthComputable) {
@@ -48,9 +49,8 @@ export async function download(fileId: string, fileSize: number, onProgressPerce
 
             xhr.onload = () => {
                 if (xhr.status === 200) {
-                    const responseArrayBuffer = xhr.response;
-                    const fileBlob = new Blob([responseArrayBuffer], { type: 'application/octet-stream' });
-                    const wordArray = CryptoJS.lib.WordArray.create(new Uint8Array(responseArrayBuffer));
+                    const fileBlob = new Blob([xhr.response], { type: mimeType });
+                    const wordArray = CryptoJS.lib.WordArray.create(xhr.response);
                     const md5Checksum = CryptoJS.MD5(wordArray).toString(CryptoJS.enc.Hex);
                     resolve({ fileBlob, md5Checksum });
                 } else {
@@ -94,4 +94,58 @@ export async function copy(fileId: string, fileName: string, parentId: string, n
         },
         fields: 'id, parents'
     })
+}
+
+export async function upload(
+    fileId: string,
+    contents: Blob,
+    onProgressPercent: (percent: number) => void
+): Promise<{ fileId: string }> {
+    return new Promise((resolve, reject) => {
+        try {
+            // C.f. download() on why we're using XHR.
+            const xhr = new XMLHttpRequest();
+            xhr.open(
+                'PATCH',
+                `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart&fields=id`,
+                true
+            );
+
+            xhr.setRequestHeader(
+                'Authorization',
+                `Bearer ${gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().access_token}`
+            );
+
+            xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    onProgressPercent(Math.round((event.loaded / event.total) * 100));
+                }
+            };
+
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    const result = JSON.parse(xhr.responseText);
+                    console.log(result);
+                    resolve({ fileId: result.id });
+                } else {
+                    reject(new Error(`Failed to upload file ${fileId}: ${xhr.statusText}`));
+                }
+            };
+
+            xhr.onerror = () => {
+                reject(new Error(`Error during the upload process for file ${fileId}`));
+            };
+
+            const form = new FormData();
+            form.append(
+                'metadata',
+                new Blob([JSON.stringify({})], { type: 'application/json' })
+            );
+            form.append('file', contents);
+
+            xhr.send(form);
+        } catch (error) {
+            reject(error);
+        }
+    });
 }
